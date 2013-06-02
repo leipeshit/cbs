@@ -2,23 +2,403 @@
 <html>
 <head>
   <title>CBS data rendering in d3</title>
+  <link href="styles.css?body=1" media="all" rel="stylesheet" type="text/css" />
+  <script src="colorbrewer.js?body=1" type="text/javascript"></script>
+  <script src="d3.v3.js?body=1" type="text/javascript"></script>
+  <script src="topojson.js?body=1" type="text/javascript"></script>
 </head>
 <body>
-<div id='map'></div>
-<div id='stats'>
-  <div id='name'>
-    <span class='label'>
-      Gemeente
-    </span>
-    <span class='value'></span>
-  </div>
-  <div id='people_amount'>
-    <span class='label'>
-      Aantal inwoners
-    </span>
-    <span class='value'></span>
-  </div>
-</div>
+  	<header class='title'>
+	  <hgroup>
+	    <h1>
+	      CBS data with d3.js
+	    </h1>
+	    <h2>
+	      Benjamin Udink ten Cate, <a href="http://leipeshit.com">Leipe Shit</a> 2013
+	    </h2>
+	  </hgroup>
+	</header>
+	<div id='map'></div>
+	<div id='stats'>
+	  <header>
+	    <hgroup>
+	      <h3 id='name'>
+	        <span class='label'>
+	          Gemeente
+	        </span>
+	        <span class='value'></span>
+	      </h3>
+	      <h4 id='people_amount'>
+	        <span class='label'>
+	          Aantal inwoners
+	        </span>
+	        <span class='value'></span>
+	      </h4>
+	    </hgroup>
+	  </header>
+	</div>
 <a href="https://github.com/you"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"></a>
+<script>
+  var tooltip = d3.select("#map").append("div")
+    .attr("class", "tooltip");
+  var totaal_aantal_inwoners;
+  var map_width = document.body.clientWidth,
+      map_height = document.body.clientHeight,
+      active;
+  
+  var svg = d3.select("#map").append("svg")
+    .attr("width", map_width)
+    .attr("height", map_height);
+  //legend
+  svg.append("rect")
+    .attr("width", map_width)
+    .attr("height", map_height)
+    .on("click", reset).attr("class", "bg");
+  
+  var gem = svg.append("g");
+  
+  
+  var color = d3.scale.threshold()
+    .domain([0, 0.1, 0.2, 0.5, 0.75, 1,  2, 5])
+    .range( colorbrewer.Blues[9]);
+  
+  // A position encoding for the key only.
+  var x = d3.scale.linear()
+      .domain([0, 5])
+      .range([0, 600]);
+  
+  var xAxis = d3.svg.axis()
+      .scale(x)
+      .orient("bottom")
+      .tickSize(13)
+      .tickValues(color.domain());
+  
+  var projection = d3.geo.mercator();
+  
+  var path = d3.geo.path()
+      .projection(projection);
+  
+  var g = svg.append("g")
+    .attr("class", "key")
+    .attr("transform", "translate(" + 40 + "," + (map_height-100) + ")");
+  
+  g.selectAll("rect")
+    .data(color.range().map(function(d, i) {
+      //console.log(d);
+      return {
+  
+        x0: i ? x(color.domain()[i - 1]) : x.range()[0],
+        x1: i < color.domain().length ? x(color.domain()[i]) : x.range()[1],
+        z: d
+      };
+    }))
+  .enter().append("rect")
+    .attr("height", 8)
+    .attr("x", function(d) { return d.x0; })
+    .attr("width", function(d) { return d.x1 - d.x0; })
+    .style("fill", function(d) { return d.z; });
+  
+  g.call(xAxis).append("text")
+    .attr("class", "caption")
+    .attr("y", -6)
+    .text("percentage van de Nederlandse bevolking");
+  
+  var thousands = d3.format(",f");
+  var donuts = [];
+  
+  var donut_width = 350,
+    donut_height = 100,
+    radius = Math.min(donut_width, donut_height) / 2;
+  
+  var pie = d3.layout.pie()
+    .sort(function(d) { return d.key; })
+    .value(function(d) { return d.value; });
+  
+  
+  
+  
+  var arc = d3.svg.arc()
+    .innerRadius(radius - 30)
+    .outerRadius(radius - 10);
+  
+  
+  var genders = [{key: "mannen", value: 'properties.mannen'}, {key: "vrouwen", value: 'properties.vrouwen'}];
+  var gender_color = d3.scale.ordinal()
+    .range(colorbrewer.Greens[3].reverse());
+  donuts.push(createDonut("Geslacht", genders, gender_color));
+  
+  var ages = [{key: "0 - 15", value: 'properties.personen_0_tot_15_jaar'}, {key: "15 - 25", value: 'properties.personen_15_tot_25_jaar'},
+          {key: "25 - 45", value: 'properties.personen_25_tot_45_jaar'}, {key: "45 - 65", value: 'properties.personen_45_tot_65_jaar'}, {key: "65+", value: 'properties.personen_65_jaar_en_ouder'}];
+  var age_color = d3.scale.ordinal()
+    .range(colorbrewer.RdPu[7].reverse());
+  donuts.push(createDonut("Leeftijd", ages, age_color));
+  
+  var households = [{key: "eenpersoons", value: 'properties.eenpersoonshuishoudens'}, {key: "met kinderen", value: 'properties.huishoudens_met_kinderen'}, {key: "zonder kinderen", value: 'properties.huishoudens_zonder_kinderen'}];
+  var household_color = d3.scale.ordinal()
+    .range(colorbrewer.YlOrRd[4].reverse());
+  donuts.push(createDonut("Huishouden", households, household_color));
+  
+  var households = [{key: "ongehuwd", value: 'properties.ongehuwd'}, {key: "gehuwd", value: 'properties.gehuwd'}, {key: "gescheid", value: 'properties.gescheid'}, {key: "verweduwd", value: 'properties.verweduwd'}];
+  var household_color = d3.scale.ordinal()
+    .range(colorbrewer.Purples[6].reverse());
+  donuts.push(createDonut("Burgerlijke stand", households, household_color));
+  
+  var lineages = [{key: "autochtonen", value: 'properties.autochtonen'}, {key: "westerse allochtonen", value: 'properties.westerse_allochtonen'}, {key: "niet westerse allochtonen", value: 'properties.niet_westerse_allochtonen'}];
+  var lineage_color = d3.scale.ordinal()
+    .range(colorbrewer.Oranges[5].reverse());
+  donuts.push(createDonut("Afkomst", lineages, lineage_color));
+  
+  d3.json("/gemeenten_topo.json", function(error, nl) {
+    console.log(nl);
+  
+    //Remove useless data && Process the dataset
+    var new_geomitries = [];
+    nl.objects.gemeenten.geometries.forEach(function(d, i) {
+      //there are shapes for the sea and water, ignore them
+      if(+d.properties.aantal_inwoners > 0){
+        //convert percentages back to amounts
+        //Leeftijd
+        d.properties.personen_0_tot_15_jaar = +d.properties.aantal_inwoners * +d.properties.percentage_personen_0_tot_15_jaar / 100;
+        d.properties.personen_15_tot_25_jaar = +d.properties.aantal_inwoners * +d.properties.percentage_personen_15_tot_25_jaar / 100;
+        d.properties.personen_25_tot_45_jaar = +d.properties.aantal_inwoners * +d.properties.percentage_personen_25_tot_45_jaar / 100;
+        d.properties.personen_45_tot_65_jaar = +d.properties.aantal_inwoners * +d.properties.percentage_personen_45_tot_65_jaar / 100;
+        d.properties.personen_65_jaar_en_ouder = +d.properties.aantal_inwoners * +d.properties.percentage_personen_65_jaar_en_ouder / 100;
+  
+        //Huishouden
+        d.properties.eenpersoonshuishoudens = +d.properties.aantal_inwoners * +d.properties.percentage_eenpersoonshuishoudens / 100;
+        d.properties.huishoudens_met_kinderen = +d.properties.aantal_inwoners * +d.properties.percentage_huishoudens_met_kinderen / 100;
+        d.properties.huishoudens_zonder_kinderen = +d.properties.aantal_inwoners * +d.properties.percentage_huishoudens_zonder_kinderen / 100;
+  
+        //Burgerlijke stand
+        d.properties.ongehuwd = +d.properties.aantal_inwoners * +d.properties.percentage_ongehuwd / 100;
+        d.properties.gehuwd = +d.properties.aantal_inwoners * +d.properties.percentage_gehuwd / 100;
+        d.properties.gescheid = +d.properties.aantal_inwoners * +d.properties.percentage_gescheid / 100;
+        d.properties.verweduwd = +d.properties.aantal_inwoners * +d.properties.percentage_verweduwd / 100;
+  
+        //Afkomst
+        d.properties.westerse_allochtonen = +d.properties.aantal_inwoners * +d.properties.percentage_westerse_allochtonen / 100;
+        d.properties.niet_westerse_allochtonen = +d.properties.aantal_inwoners * +d.properties.percentage_niet_westerse_allochtonen / 100;
+        d.properties.autochtonen = +d.properties.aantal_inwoners - d.properties.niet_westerse_allochtonen - d.properties.westerse_allochtonen;
+  
+  
+        new_geomitries.push(d);
+      }
+    });
+    nl.objects.gemeenten.geometries = new_geomitries;
+  
+  
+    console.log(nl);
+  
+    var gemeenten = topojson.feature(nl, nl.objects.gemeenten);
+  
+    console.log(gemeenten);
+    totaal_aantal_inwoners = d3.sum( gemeenten.features, function(d) {return d.properties.aantal_inwoners});
+    d3.selectAll("#name .value").text("Alle gemeentes" );
+    d3.selectAll("#people_amount .value").text( thousands(totaal_aantal_inwoners) );
+  
+    var center = d3.geo.centroid(gemeenten)
+    projection
+        .scale(1)
+        .translate([0, 0])
+        .center(center);
+    var b = path.bounds(gemeenten),
+        s = .95 / Math.max((b[1][0] - b[0][0]) / map_width, (b[1][1] - b[0][1]) / map_height),
+        t = [(map_width - s * (b[1][0] + b[0][0])) / 2, (map_height - s * (b[1][1] + b[0][1])) / 2];
+  
+    projection
+        .scale(s)
+        .translate(t)
+        //.rotate([0,0,0.02])
+    var gemeentes = gem.append("g")
+      .attr("class", "gemeenten")
+      .selectAll("path").data(gemeenten.features);
+  
+      gemeentes.enter().append("path")
+        .attr("class", "gemeente")
+        .attr("d", path)
+        .style("fill", function(d) {
+           return color(
+            (+d.properties.aantal_inwoners) / (totaal_aantal_inwoners) * 100
+          );
+        })
+        .on("mousemove", function(d,i) {
+          var mouse = d3.mouse(svg.node()).map( function(d) { return parseInt(d); } );
+  
+          tooltip
+            .classed("hidden", false)
+            .attr("style", "left:"+(mouse[0]+25)+"px;top:"+mouse[1]+"px")
+            .html(d.properties.gemeentenaam + ":" + d.properties.aantal_inwoners)
+        })
+        .on("mouseout",  function(d,i) {
+          tooltip.classed("hidden", true)
+        })
+        .on("click", click);
+  
+  
+        donuts.forEach(function(donut){
+          donut.render(gemeenten.features);
+        })
+  
+  });
+  function click(d) {
+    if (active === d) return reset();
+    //console.log(d);
+    gem.selectAll(".active").classed("active", false);
+    d3.select(this).classed("active", active = d);
+  
+    var b = path.bounds(d);
+    gem.transition().duration(750).attr("transform",
+        "translate(" + projection.translate() + ")"
+        + "scale(" + (.95 / Math.max((b[1][0] - b[0][0]) / map_width, (b[1][1] - b[0][1]) / map_height)*0.4) + ")"
+        + "translate(" + -(b[1][0] + b[0][0]) / 2 + "," + -(b[1][1] + b[0][1]) / 2 + ")");
+    change();
+  }
+  function change() {
+      donuts.forEach(function(donut){
+          donut.zoom_in(active);
+      });
+  
+      d3.selectAll("#name .value").text( active.properties.gemeentenaam );
+      d3.selectAll("#people_amount .value").text( thousands(active.properties.aantal_inwoners) );
+    }
+  
+  function reset() {
+  
+    donuts.forEach(function(donut){
+        donut.zoom_out();
+    });
+  
+    gem.selectAll(".active").classed("active", active = false);
+    gem.transition().duration(750).attr("transform", "");
+  
+    d3.selectAll("#name .value").text("Alle gemeentes" );
+    d3.selectAll("#people_amount .value").text( thousands(totaal_aantal_inwoners) );
+  
+  }
+  
+  function createDonut(title, data_keys, color){
+    var donut = {};
+    donut.title = title;
+    //[{key: "mannen", value: 'properties.mannen'}, {key: "vrouwen", value: 'properties.vrouwen'}];
+    donut.data_keys = data_keys;
+    donut.color = color;
+  
+    //donut.color = d3.scale.ordinal()
+    //  .range( colorbrewer.RdPu[ data_keys.length ] );
+    var divvy =  d3.select("#stats").append('div')
+      .attr("class", "donut");
+    divvy.append("h4")
+      .text(title);
+    donut.svg = divvy.append("svg")
+    .attr("width", donut_width)
+    .attr("height", donut_height)
+    .append("g")
+      .attr("transform", "translate(" + donut_height / 2 + "," + donut_height / 2 + ")");
+  
+    donut.render = function(json){
+      donut.data = [];
+  
+      donut.data_keys.forEach(function(data_key){
+        donut.data.push({ key: data_key.key, value: d3.sum( json, function(d) { return getObjectPropertyByString(d, data_key.value); }) });
+      });
+  
+      donut.path = donut.svg.selectAll("path")
+        .data(pie(donut.data))
+        .enter().append("path")
+          .attr("fill", function(d, i) {
+            return donut.color(i);
+          })
+          .attr("d", arc)
+          .each(function(d) { this._current = d; });
+  
+      addLegend(donut.svg, donut.data, donut)
+    }
+  
+    donut.zoom_in = function(zoom_data){
+      donut.active = [];
+  
+      donut.data_keys.forEach(function(data_key){
+        donut.active.push({ key: data_key.key, value: getObjectPropertyByString(zoom_data, data_key.value) });
+      });
+      donut.path = donut.path.data(pie(donut.active));
+      donut.path.attr("d", arc); // redraw the arcs
+      donut.path.transition().duration(750).attrTween("d", arcTween); // redraw the arcs
+      updateLegend(donut.svg , donut.active, donut);
+    }
+    donut.zoom_out = function(){
+  
+      donut.path = donut.path.data(pie(donut.data));
+      donut.path.attr("d", arc); // redraw the arcs
+      donut.path.transition().duration(750).attrTween("d", arcTween); // redraw the arcs
+      updateLegend(donut.svg , donut.data, donut);
+  
+    }
+  
+    return donut;
+  }
+  function getObjectPropertyByString(object, prop) {
+    var parts = prop.split('.');
+  
+    parts.forEach(function(part){
+      object = object[part];
+    });
+    return object;
+  
+  }
+    //Animate donut
+  function arcTween(a) {
+    var i = d3.interpolate(this._current, a);
+    this._current = i(0);
+    return function(t) {
+      return arc(i(t));
+    };
+  }
+  //create a donut legend
+  function addLegend(donut_container, legend_data, donut){
+      var legend_container =  donut_container.append("g")
+      .attr("class", "legend_container")
+      .attr("transform", "translate(" + 60 + "," + -40 + ")");
+      //LEGEN
+      var legend = legend_container.selectAll(".legend")
+        .data(legend_data)
+        .enter().append("g")
+        .attr("class", "legend")
+        .attr("transform", function(d, i) {
+            return "translate(0," + ((i * 15)) + ")";
+        });
+        //WAIT FOR IT!!
+        //colored boxes
+        legend.append("rect")
+          .attr("width", 12)
+          .attr("height", 12)
+          .style("fill", function(d, i) { return donut.color(i) })
+  
+          //WAIT FOR IT!!
+          //type name
+          legend.append("text")
+            .attr("x", 15)
+            .attr("y", 0)
+            .attr("dy", "9px")
+            .text(function(d) { return d.key; });
+  
+          //WAIT FOR IT!!
+          //value
+          legend.append("text")
+            .attr("x", 200)
+            .attr("y", 0)
+            .attr("dx", -3) // padding-right
+            .attr("dy", "9px") // vertical-align: middle
+            .attr("class", "legend_value")
+            .text(function(d) { return thousands(d.value) });
+  
+          //DARY!
+  }
+  function updateLegend(donut_container, legend_data){
+    var legend = donut_container.selectAll(".legend_value").data(legend_data);
+    legend.text(function(d) { return thousands(d.value) });
+  }
+</script>
+
+
 </body>
 </html>
