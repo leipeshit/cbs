@@ -258,7 +258,6 @@ window.onload=function(){
       donuts.forEach(function(donut){
           donut.zoom_in(active);
       });
-};
   
       d3.selectAll("#name .value").text( active.properties.gemeentenaam );
       d3.selectAll("#people_amount .value").text( thousands(active.properties.aantal_inwoners) );
@@ -399,6 +398,7 @@ window.onload=function(){
     var legend = donut_container.selectAll(".legend_value").data(legend_data);
     legend.text(function(d) { return thousands(d.value) });
   }
+};
 </script>
 
 
