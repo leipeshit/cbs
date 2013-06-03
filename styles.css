@@ -9,7 +9,7 @@ body, html{
     width: 100%;
 }
 body{
-    background-image: url("/texture-noise.png");
+    background-image: url("texture-noise.png");
     overflow: hidden;
     margin: 0;
     font-size: 14px;

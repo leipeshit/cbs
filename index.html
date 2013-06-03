@@ -149,7 +149,7 @@ window.onload=function(){
     .range(colorbrewer.Oranges[5].reverse());
   donuts.push(createDonut("Afkomst", lineages, lineage_color));
   
-  d3.json("/gemeenten_topo.json", function(error, nl) {
+  d3.json("gemeenten_topo.json", function(error, nl) {
     console.log(nl);
   
     //Remove useless data && Process the dataset
