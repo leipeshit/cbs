@@ -1,0 +1,105 @@
+%header.title
+  %hgroup
+    %h1
+      CBS data
+    %h2
+      with d3.js
+  %p
+    %strong Map and donuts can be clicked to filter the data
+  %p
+    Using <a href="http://d3js.org/">d3.js</a> to display the CBS data <br/>found at <a href="http://www.nationaalgeoregister.nl/geonetwork/srv/search/?uuid=aeba6452-2025-444b-86aa-6ff4b23b3878">CBS Wijken en Buurten 2012 versie 1 WFS</a> specifically the <br/>gemeenten2012(municipalities) dataset in geojson format.
+  %p
+    Tutorial will follow soon!
+  %p
+    <a href="http://moop.me">Benjamin Udink ten Cate</a>, 2013
+#map
+
+#stats
+  #genders.donut
+  #civil_registrations.donut
+  #age.donut
+  #households.donut
+  #lineages.donut
+
+:javascript
+  window.onload=function(){
+
+    //cbs_data.loadData
+    //cbs_view.display()
+
+    d3.json("/gemeenten_topo.json", function(error, nl) {
+      cbs_data.set_data(nl);
+
+      var donuts = [
+        shizzle.charts.donut()
+          .title("Leeftijd")
+          .data_keys(cbs_data.collections().ages)
+          .color_range(colorbrewer.RdPu)
+          .page_data(cbs_data.geometries()),
+        shizzle.charts.donut()
+          .title("Burgerlijke stand")
+          .data_keys(cbs_data.collections().civil_registrations)
+          .color_range(colorbrewer.Purples)
+          .page_data(cbs_data.geometries()),
+        shizzle.charts.donut()
+          .title("Huishouden")
+          .data_keys(cbs_data.collections().households)
+          .color_range(colorbrewer.YlOrRd)
+          .page_data(cbs_data.geometries()),
+        shizzle.charts.donut()
+          .title("Afkomst")
+          .data_keys(cbs_data.collections().lineages)
+          .color_range(colorbrewer.Oranges)
+          .page_data(cbs_data.geometries()),
+        shizzle.charts.donut()
+          .title('Geslacht')
+          .data_keys(cbs_data.collections().genders)
+          .color_range(colorbrewer.Greens)
+          .page_data(cbs_data.geometries()),
+      ];
+      var donut = d3.selectAll(".donut")
+        .data(donuts);
+
+      //var totaal_aantal_inwoners = d3.sum( cbs_data.geometries(), function(d) {return d.properties.aantal_inwoners});
+      //color.domain(get_quantile_domain(cbs_data.geometries()));
+      var map = shizzle.charts.map()
+        .chart_data(topojson.feature(cbs_data.data(), cbs_data.data().objects.gemeenten))
+        .color(d3.scale.threshold().range( colorbrewer.Blues[9]))
+        .domain(shizzle.utils.quantiles(cbs_data.geometries(), 'percentage_aantal_inwoners'))
+        .color_by(function(d){ return d.properties.percentage_aantal_inwoners });
+
+
+      function renderAll() {
+        donut.each(render);
+        render(map);
+      }
+
+      function render(method) {
+        d3.select(this).call(method);
+      }
+      window.set_dimension = function(legend, data_keys, color_domain){
+        map.set_color(legend, data_keys, color_domain);
+      };
+      window.click = function(active) {
+        donuts.forEach(function(donut, i) {
+          donut.zoom_in(active);
+        });
+        map.zoom_in(active);
+        d3.event.stopPropagation();
+      };
+
+      window.reset = function(i) {
+        map.zoom_out();
+        donuts.forEach(function(donut, i) {
+          donut.zoom_out();
+        });
+      };
+      d3.select(window).on("click", function() {
+        map.zoom_out();
+      });
+
+      renderAll();
+
+    });
+
+  };

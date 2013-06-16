@@ -1,0 +1,67 @@
+@import "compass";
+@import 'variables';
+@import 'mixins';
+@import 'partials/*';
+
+body, html{
+    height: 100%;
+    width: 100%;
+}
+body{
+    background-image: url("texture-noise.png");
+    overflow: hidden;
+    margin: 0;
+    font-size: 14px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    font-family: "Helvetica Neue", Helvetica, sans-serif;
+}
+header.title{
+    position: absolute;
+    left: 40px;
+    top: 0;
+    z-index: 1;
+    color: #ddd;
+    padding: 20px;
+    line-height: 21px;
+    font-size: 14px;
+    width: 200px;
+    a{
+      color: #ddd;
+      text-decoration: none;
+      padding-bottom: 1px;
+      border-bottom: 2px solid #aaa;
+      &:hover{
+        border-bottom-color: #ddd;
+      }
+    }
+    &:after {
+      content: "";
+      background: url('grey_dark_noise.jpg');
+      opacity: 0.7;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      position: absolute;
+      border-radius: 0 0 10px 10px;
+      z-index: -1;
+    }
+}
+.legend_value{
+    text-anchor: end;
+
+}
+.key path {
+  display: none;
+}
+.key line {
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+.water, .bg{
+   fill: transparent;
+}

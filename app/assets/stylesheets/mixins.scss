@@ -1,0 +1,6 @@
+@mixin info-window-gradient(){
+  @include filter-gradient(#fafafa, #f2f2f2);
+  /* Fallback: */
+  background: #fafafa;
+  @include background-image(linear-gradient(#fafafa, #f2f2f2));
+}

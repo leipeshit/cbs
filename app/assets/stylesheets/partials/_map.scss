@@ -1,0 +1,21 @@
+#map{
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  height: 100%;
+  width: 100%;
+
+  .tick{
+    font: 8px sans-serif;
+  }
+  path.gemeente {
+    stroke: #fff;
+    stroke-width: 0.25px;
+    cursor: pointer;
+  }
+  path.gemeente:hover {
+    fill: #000000!important;
+  }
+}
