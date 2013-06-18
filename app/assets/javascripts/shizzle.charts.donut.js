@@ -43,7 +43,7 @@ shizzle.charts.donut = function(){
               .append("path")
                 .attr("fill", function(d, i) { return color(i); })
                 .attr("d", arc)
-              .on("click", function(d){ set_dimension(d.data.key, data_keys, color_range) });
+              .on("click", function(d){ set_dimension(title, d.data.key, data_keys, color_range) });
             legend(data);
         });
 
@@ -62,7 +62,7 @@ shizzle.charts.donut = function(){
             .attr("transform", function(d, i) {
                 return "translate(0," + ((i * 15)) + ")";
             })
-            .on("click", function(d){ set_dimension(d.key, data_keys, color_range) });
+            .on("click", function(d){ set_dimension(title, d.key, data_keys, color_range) });
             //+WAIT FOR IT!!
             //colored boxes
 

@@ -77,8 +77,8 @@
       function render(method) {
         d3.select(this).call(method);
       }
-      window.set_dimension = function(legend, data_keys, color_domain){
-        map.set_color(legend, data_keys, color_domain);
+      window.set_dimension = function(title, legend, data_keys, color_domain){
+        map.set_dimension(title, legend, data_keys, color_domain);
       };
       window.click = function(active) {
         donuts.forEach(function(donut, i) {
