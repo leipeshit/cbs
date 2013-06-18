@@ -45,7 +45,7 @@ Tutorial will follow soon!
 <div class='donut' id='households'></div>
 <div class='donut' id='lineages'></div>
 </div>
-<a href="https://github.com/you"><img style="position: absolute; top: 0; left: 0; border: 0; z-index: 100;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_darkblue_121621.png" alt="Fork me on GitHub"></a>
+<a href="https://github.com/leipeshit/cbs"><img style="position: absolute; top: 0; left: 0; border: 0; z-index: 100;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_darkblue_121621.png" alt="Fork me on GitHub"></a>
 <script>
   window.onload=function(){
   
@@ -102,8 +102,8 @@ Tutorial will follow soon!
       function render(method) {
         d3.select(this).call(method);
       }
-      window.set_dimension = function(legend, data_keys, color_domain){
-        map.set_color(legend, data_keys, color_domain);
+      window.set_dimension = function(title, legend, data_keys, color_domain){
+        map.set_dimension(title, legend, data_keys, color_domain);
       };
       window.click = function(active) {
         donuts.forEach(function(donut, i) {

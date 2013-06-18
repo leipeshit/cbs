@@ -2,13 +2,25 @@ shizzle.charts.map = function(){
     var width = document.body.clientWidth,
       height = document.body.clientHeight;
 
-    var chart_data, color_by, color, domain, active, map, zoom, zoom_out;
+    var svg, chart_data, color_by, color, domain, active, map, zoom, zoom_out;
     var  tooltip;
     var projection = d3.geo.mercator();
+    var dimension_title = 'Inwoners';
+    var dimension_sub_title = 'percentage totaal';
+    var percentage_field = 'percentage_aantal_inwoners';
     var path = d3.geo.path()
         .projection(projection);
-    var percent = d3.format(".3r");
+
+//    var percent = d3.format(".3r");
     //var data;
+    var percent_format = d3.format(".2r");
+        var percent = function(value){
+            if(value % 1 != 0){
+                return (+percent_format(value))+"%"
+            }
+            return (+value)+"%"
+        }
+
     function chart(div) {
         //render chart
 
@@ -25,7 +37,7 @@ shizzle.charts.map = function(){
             tooltip.append("div")
                     .attr("class", "popover-content");
             var center = d3.geo.centroid(chart_data)
-            var svg = d3.select("#map").append("svg")
+            svg = d3.select("#map").append("svg")
                 .attr("width", width)
                 .attr("height", height);
             projection
@@ -52,21 +64,27 @@ shizzle.charts.map = function(){
                    return color( color_by(d) );
                 });
                 gemeente.on("mousemove", function(d,i) {
+//                    console.log(percent(d));
                   var mouse = d3.mouse(svg.node()).map( function(d) { return parseInt(d); } );
+                  //TODO: custom tooltip injection
+                  //TODO: if current is active, only update left and top style
                   tooltip
                     .classed("hidden", false)
                   tooltip.select(".popover-title")
                       .text(d.properties.gemeentenaam);
+                    var color_style = "border-bottom: solid 5px " + color( color_by(d) ) + ";"
                   var html = "<table><tr><td>Aantal inwoners</td><td class='right'>" +d.properties.aantal_inwoners+"</td></tr>" +
-                      "<tr><td>Percentage Nederland</td><td class='right'>" +percent(+d.properties.percentage_aantal_inwoners)+"%</td></tr>" +
                       "<tr><td>Aantal huishoudens</td><td class='right'>" + +d.properties.aantal_huishoudens +"</td></tr>" +
                       "<tr><td>Bevolkingsdichtheid</td><td class='right'>" + d.properties.bevolkingsdichtheid_inwoners_per_km2+"/km2</td></tr>" +
+
+                      "<tr><td style='"+color_style+"'>"+dimension_title + ": " + dimension_sub_title +"</td><td style='"+color_style+"' class='right'>" +percent(+d.properties[percentage_field])+"</td></tr>" +
                       "</table>"
                     tooltip.select(".popover-content")
                       .html(html);
 
 
                   var tooltip_bounds = tooltip.node().getBoundingClientRect();
+
                     //if top < 0, flip it around
                     if(mouse[1] < 180){
                         tooltip
@@ -86,7 +104,7 @@ shizzle.charts.map = function(){
                 })
                 gemeente.on("click", click);
                 });
-
+                draw_legend('Inwoners', 'percentage totaal',color, domain)
 
 
     };
@@ -111,17 +129,23 @@ shizzle.charts.map = function(){
       color.domain(domain);
       return chart;
     };
-    chart.set_color = function(legend, data_keys, color_domain){
+    chart.set_dimension = function(title, legend, data_keys, color_domain){
         var bisect = d3.bisector(function(d) { return d.key; }).right;
-        var percentage_field = data_keys[bisect(data_keys, legend) - 1].percentage;
+        percentage_field = data_keys[bisect(data_keys, legend) - 1].percentage;
+
+        var domain = shizzle.utils.quantiles(cbs_data.geometries(), percentage_field);
         color
-          .domain( shizzle.utils.quantiles(cbs_data.geometries(), percentage_field) )
+          .domain( domain )
           .range(color_domain[9]);
         d3.selectAll(".gemeente").style("fill", function(d) {
            return color(
             +d.properties[percentage_field]
           );
         });
+        dimension_title = title;
+        dimension_sub_title = legend;
+        draw_legend(title, legend, color, domain)
+        color_by = (function(d){ return d.properties[percentage_field] });
     }
     chart.zoom_in = function(d) {
 
@@ -143,12 +167,47 @@ shizzle.charts.map = function(){
         tooltip.classed("hidden", true);
         return chart;
     };
-    chart.change_domain = function(){
-       color.domain( get_quantile_domain(gemeenten.features, percentage_field) )
-          .range(donut.colors[9]);
-        d3.selectAll(".gemeente").style("fill", function(d) {
-           return color( +d.properties[percentage_field] );
-        });
+    var draw_legend = function(title, sub_title, color, domain){
+        var legend_width = 400;
+        var legend = svg.select("g.map_legend");
+        var legend_bar_width = legend_width / domain.length
+        if(! legend.empty()){
+            legend.remove();
+        }
+        legend= svg.append("g")
+            .attr("class", "map_legend")
+            .attr("transform", "translate(" + 150 + ", "+ (document.body.clientHeight - 100) +")");
+        legend.append("text")
+           .attr("x", 0)
+            .attr("y", -15)
+            .attr("dy", "10px")
+            .attr("class", "title")
+            .text(title + ': ' + sub_title);
+
+        var legend_group = legend.selectAll(".legend")
+            .data(domain)
+            .enter().append("g")
+            .attr("class", "legend")
+            .attr("transform", function(d, i) {
+
+                var x = (i * legend_bar_width)
+                return "translate(" + x + ", 0)";
+            })
+        legend_group.append("rect")
+            .attr("width", legend_bar_width)
+            .attr("height", 12)
+            .style("fill", function(d, i) { return color(d) })
+        legend_group.append("rect")
+            .attr("width", legend_bar_width)
+            .attr("height", 12)
+            .style("fill", function(d, i) { return color(d) })
+
+        legend_group.append("text")
+                .attr("x", 5)
+                .attr("y", 15)
+                .attr("dy", "10px")
+                .attr("class", "tick")
+                .text(function(d) { return percent(d); });
     }
 
 
